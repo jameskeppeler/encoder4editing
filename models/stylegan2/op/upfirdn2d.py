@@ -1,18 +1,26 @@
-import os
+﻿import os
 
 import torch
 from torch.autograd import Function
 from torch.utils.cpp_extension import load
 
 module_path = os.path.dirname(__file__)
-upfirdn2d_op = load(
-    'upfirdn2d',
-    sources=[
-        os.path.join(module_path, 'upfirdn2d.cpp'),
-        os.path.join(module_path, 'upfirdn2d_kernel.cu'),
-    ],
-)
+# --- WINDOWS_NO_JIT_UPFIRDN2D ---
+# Avoid torch.utils.cpp_extension.load() (requires nvcc). Use the repo's pure-PyTorch upfirdn2d.
+from op.upfirdn2d import _upfirdn2d_fallback as _upfirdn2d
 
+class _Upfirdn2dOp:
+    @staticmethod
+    def upfirdn2d(input, kernel, up_x, up_y, down_x, down_y, pad_x0, pad_x1, pad_y0, pad_y1):
+        return _upfirdn2d(
+            input, kernel,
+            up=(up_x, up_y),
+            down=(down_x, down_y),
+            pad=(pad_x0, pad_x1, pad_y0, pad_y1),
+        )
+
+upfirdn2d_op = _Upfirdn2dOp()
+# --- END WINDOWS_NO_JIT_UPFIRDN2D ---
 
 class UpFirDn2dBackward(Function):
     @staticmethod
@@ -182,3 +190,6 @@ def upfirdn2d_native(
     out = out.permute(0, 2, 3, 1)
 
     return out[:, ::down_y, ::down_x, :]
+
+
+
