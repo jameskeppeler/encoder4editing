@@ -6,6 +6,14 @@ import scipy.ndimage
 import dlib
 
 
+if hasattr(PIL.Image, "Resampling"):
+    _RESAMPLE_LANCZOS = PIL.Image.Resampling.LANCZOS
+    _RESAMPLE_BILINEAR = PIL.Image.Resampling.BILINEAR
+else:
+    _RESAMPLE_LANCZOS = PIL.Image.ANTIALIAS
+    _RESAMPLE_BILINEAR = PIL.Image.BILINEAR
+
+
 def get_landmark(filepath, predictor):
     """get landmark with dlib
     :return: np.array shape=(68, 2)
@@ -14,9 +22,9 @@ def get_landmark(filepath, predictor):
 
     img = dlib.load_rgb_image(filepath)
     dets = detector(img, 1)
-
-    for k, d in enumerate(dets):
-        shape = predictor(img, d)
+    if len(dets) == 0:
+        raise RuntimeError(f"No face landmarks detected for: {filepath}")
+    shape = predictor(img, dets[0])
 
     t = list(shape.parts())
     a = []
@@ -74,7 +82,7 @@ def align_face(filepath, predictor):
     shrink = int(np.floor(qsize / output_size * 0.5))
     if shrink > 1:
         rsize = (int(np.rint(float(img.size[0]) / shrink)), int(np.rint(float(img.size[1]) / shrink)))
-        img = img.resize(rsize, PIL.Image.ANTIALIAS)
+        img = img.resize(rsize, _RESAMPLE_LANCZOS)
         quad /= shrink
         qsize /= shrink
 
@@ -107,9 +115,9 @@ def align_face(filepath, predictor):
         quad += pad[:2]
 
     # Transform.
-    img = img.transform((transform_size, transform_size), PIL.Image.QUAD, (quad + 0.5).flatten(), PIL.Image.BILINEAR)
+    img = img.transform((transform_size, transform_size), PIL.Image.QUAD, (quad + 0.5).flatten(), _RESAMPLE_BILINEAR)
     if output_size < transform_size:
-        img = img.resize((output_size, output_size), PIL.Image.ANTIALIAS)
+        img = img.resize((output_size, output_size), _RESAMPLE_LANCZOS)
 
     # Return aligned image.
     return img
