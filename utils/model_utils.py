@@ -4,8 +4,15 @@ from ..models.psp import pSp
 from ..models.encoders.psp_encoders import Encoder4Editing
 
 
+def _load_checkpoint(path, map_location='cpu'):
+    try:
+        return torch.load(path, map_location=map_location, weights_only=True)
+    except TypeError:
+        return torch.load(path, map_location=map_location)
+
+
 def setup_model(checkpoint_path, device='cuda'):
-    ckpt = torch.load(checkpoint_path, map_location='cpu')
+    ckpt = _load_checkpoint(checkpoint_path, map_location='cpu')
     opts = ckpt['opts']
 
     opts['checkpoint_path'] = checkpoint_path
@@ -19,7 +26,7 @@ def setup_model(checkpoint_path, device='cuda'):
 
 
 def load_e4e_standalone(checkpoint_path, device='cuda'):
-    ckpt = torch.load(checkpoint_path, map_location='cpu')
+    ckpt = _load_checkpoint(checkpoint_path, map_location='cpu')
     opts = argparse.Namespace(**ckpt['opts'])
     e4e = Encoder4Editing(50, 'ir_se', opts)
     e4e_dict = {k.replace('encoder.', ''): v for k, v in ckpt['state_dict'].items() if k.startswith('encoder.')}

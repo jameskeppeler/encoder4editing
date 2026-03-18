@@ -8,6 +8,13 @@ from .stylegan2.model import Generator
 from ..configs.paths_config import model_paths
 
 
+def _load_checkpoint(path, map_location='cpu'):
+    try:
+        return torch.load(path, map_location=map_location, weights_only=True)
+    except TypeError:
+        return torch.load(path, map_location=map_location)
+
+
 def get_keys(d, name):
     if 'state_dict' in d:
         d = d['state_dict']
@@ -41,16 +48,16 @@ class pSp(nn.Module):
     def load_weights(self):
         if self.opts.checkpoint_path is not None:
             print('Loading e4e over the pSp framework from checkpoint: {}'.format(self.opts.checkpoint_path))
-            ckpt = torch.load(self.opts.checkpoint_path, map_location='cpu')
+            ckpt = _load_checkpoint(self.opts.checkpoint_path, map_location='cpu')
             self.encoder.load_state_dict(get_keys(ckpt, 'encoder'), strict=True)
             self.decoder.load_state_dict(get_keys(ckpt, 'decoder'), strict=True)
             self.__load_latent_avg(ckpt)
         else:
             print('Loading encoders weights from irse50!')
-            encoder_ckpt = torch.load(model_paths['ir_se50'])
+            encoder_ckpt = _load_checkpoint(model_paths['ir_se50'])
             self.encoder.load_state_dict(encoder_ckpt, strict=False)
             print('Loading decoder weights from pretrained!')
-            ckpt = torch.load(self.opts.stylegan_weights)
+            ckpt = _load_checkpoint(self.opts.stylegan_weights)
             self.decoder.load_state_dict(ckpt['g_ema'], strict=False)
             self.__load_latent_avg(ckpt, repeat=self.encoder.style_count)
 
